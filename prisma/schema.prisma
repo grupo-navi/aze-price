@@ -1,0 +1,22 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model PriceHistory {
+  id        String   @id @default(uuid())
+  btcBrl    Float    // Preço do BTC em BRL
+  azeBrl    Float    // Preço do AZE em BRL (BTC / 1000)
+  source    String   @default("awesome_api") // awesome_api ou fallback
+  timestamp DateTime @default(now())
+
+  @@index([timestamp])
+  @@map("price_history")
+}

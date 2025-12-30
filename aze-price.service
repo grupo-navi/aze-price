@@ -1,0 +1,19 @@
+[Unit]
+Description=AZE Price API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=SEU-USUARIO-AQUI
+WorkingDirectory=/var/www/aze-price
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/npm run start:prod
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=aze-price
+
+[Install]
+WantedBy=multi-user.target
