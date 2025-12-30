@@ -78,9 +78,11 @@ cd /var/www/aze-price
 
 ## Passo 6: Transferir Arquivos do Projeto
 
-**Opção A: Se tiver Git configurado**
+**Opção A: Clonar via Git (Recomendado)**
 ```bash
-git clone <url-do-repositorio> .
+# No servidor
+cd /var/www/aze-price
+git clone https://github.com/grupo-navi/aze-price.git .
 ```
 
 **Opção B: Transferir via SCP (execute no seu computador local)**
