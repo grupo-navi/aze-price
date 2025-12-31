@@ -13,13 +13,19 @@ Serviço que:
 
 ## 🚀 Instalação em Servidor
 
+**Guias de Instalação Disponíveis:**
+
+- **[INSTALACAO_SERVIDOR.md](INSTALACAO_SERVIDOR.md)** - Instalação completa com Systemd (auto-start no boot)
+- **[INSTALL_PM2.md](INSTALL_PM2.md)** - Instalação com PM2 (recomendado para produção)
+
 ### Pré-requisitos
 
 Antes de iniciar, certifique-se de ter instalado:
 
-- **Node.js 20.x ou superior**
+- **Node.js 18.x ou superior**
 - **PostgreSQL 12 ou superior**
 - **Git** (para clonar o repositório)
+- **PM2** (opcional, mas recomendado para produção)
 
 ### Instalação do Node.js
 

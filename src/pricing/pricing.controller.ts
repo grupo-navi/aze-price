@@ -23,8 +23,15 @@ export class PricingController {
     return {
       success: true,
       data: {
-        btcBrl: price.btcBrl,
-        azeBrl: price.azeBrl,
+        brl: {
+          btc: price.btcBrl,
+          aze: price.azeBrl,
+        },
+        usd: {
+          btc: price.btcUsd,
+          aze: price.azeUsd,
+          toBrl: price.usdBrl,
+        },
         source: price.source,
         timestamp: price.timestamp,
       },

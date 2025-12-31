@@ -14,6 +14,9 @@ model PriceHistory {
   id        String   @id @default(uuid())
   btcBrl    Float    // Preço do BTC em BRL
   azeBrl    Float    // Preço do AZE em BRL (BTC / 1000)
+  btcUsd    Float    // Preço do BTC em USD
+  azeUsd    Float    // Preço do AZE em USD (BTC / 1000)
+  usdBrl    Float    // Cotação do Dólar em BRL
   source    String   @default("awesome_api") // awesome_api ou fallback
   timestamp DateTime @default(now())
 

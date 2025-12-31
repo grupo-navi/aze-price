@@ -2,20 +2,24 @@ import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
 import { PrismaService } from '../prisma.service';
 
+interface AwesomeApiCurrency {
+  code: string;
+  codein: string;
+  name: string;
+  high: string;
+  low: string;
+  varBid: string;
+  pctChange: string;
+  bid: string;
+  ask: string;
+  timestamp: string;
+  create_date: string;
+}
+
 interface AwesomeApiResponse {
-  BTCBRL: {
-    code: string;
-    codein: string;
-    name: string;
-    high: string;
-    low: string;
-    varBid: string;
-    pctChange: string;
-    bid: string;
-    ask: string;
-    timestamp: string;
-    create_date: string;
-  };
+  BTCBRL: AwesomeApiCurrency;
+  BTCUSD: AwesomeApiCurrency;
+  USDBRL: AwesomeApiCurrency;
 }
 
 @Injectable()
@@ -38,33 +42,41 @@ export class PricingService {
         timeout: 10000,
       });
 
-      const btcData = response.data?.BTCBRL;
+      const btcBrlData = response.data?.BTCBRL;
+      const btcUsdData = response.data?.BTCUSD;
+      const usdBrlData = response.data?.USDBRL;
 
-      if (!btcData) {
+      if (!btcBrlData || !btcUsdData || !usdBrlData) {
         this.logger.error('Resposta inválida da API:', JSON.stringify(response.data));
         throw new Error('Resposta inválida da Awesome API');
       }
 
-      const btcBrl = parseFloat(btcData.bid);
+      const btcBrl = parseFloat(btcBrlData.bid);
+      const btcUsd = parseFloat(btcUsdData.bid);
+      const usdBrl = parseFloat(usdBrlData.bid);
 
-      if (isNaN(btcBrl) || btcBrl <= 0) {
-        this.logger.error(`Preço BTC inválido: ${btcData.bid}`);
-        throw new Error(`Preço BTC inválido: ${btcData.bid}`);
+      if (isNaN(btcBrl) || btcBrl <= 0 || isNaN(btcUsd) || btcUsd <= 0 || isNaN(usdBrl) || usdBrl <= 0) {
+        this.logger.error(`Preços inválidos - BTC/BRL: ${btcBrlData.bid}, BTC/USD: ${btcUsdData.bid}, USD/BRL: ${usdBrlData.bid}`);
+        throw new Error('Preços inválidos da Awesome API');
       }
 
       const azeBrl = btcBrl / this.BTC_DIVISOR;
+      const azeUsd = btcUsd / this.BTC_DIVISOR;
 
       // Salvar no banco
       await this.prisma.priceHistory.create({
         data: {
           btcBrl,
           azeBrl,
+          btcUsd,
+          azeUsd,
+          usdBrl,
           source: 'awesome_api',
         },
       });
 
       this.logger.log(
-        `✅ Cotação salva: BTC R$ ${btcBrl.toLocaleString('pt-BR')} → AZE R$ ${azeBrl.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        `✅ Cotação salva: BTC R$ ${btcBrl.toLocaleString('pt-BR')} / $ ${btcUsd.toLocaleString('en-US')} → AZE R$ ${azeBrl.toLocaleString('pt-BR', { minimumFractionDigits: 3 })} / $ ${azeUsd.toLocaleString('en-US', { minimumFractionDigits: 3 })}`,
       );
     } catch (error: any) {
       this.logger.error(`❌ Erro ao buscar cotação: ${error.message}`);
@@ -77,15 +89,22 @@ export class PricingService {
       // Usar fallback apenas se não houver nenhum registro recente
       const lastPrice = await this.getLatestPrice();
       if (!lastPrice) {
-        const fallbackAze = this.FALLBACK_BTC_BRL / this.BTC_DIVISOR;
+        const fallbackBtcUsd = 95000; // Fallback BTC/USD
+        const fallbackUsdBrl = 5.50; // Fallback USD/BRL
+        const fallbackAzeBrl = this.FALLBACK_BTC_BRL / this.BTC_DIVISOR;
+        const fallbackAzeUsd = fallbackBtcUsd / this.BTC_DIVISOR;
+
         await this.prisma.priceHistory.create({
           data: {
             btcBrl: this.FALLBACK_BTC_BRL,
-            azeBrl: fallbackAze,
+            azeBrl: fallbackAzeBrl,
+            btcUsd: fallbackBtcUsd,
+            azeUsd: fallbackAzeUsd,
+            usdBrl: fallbackUsdBrl,
             source: 'fallback',
           },
         });
-        this.logger.warn(`⚠️  Usando preço fallback: BTC R$ ${this.FALLBACK_BTC_BRL.toLocaleString('pt-BR')} → AZE R$ ${fallbackAze.toFixed(2)}`);
+        this.logger.warn(`⚠️  Usando preço fallback: BTC R$ ${this.FALLBACK_BTC_BRL.toLocaleString('pt-BR')} / $ ${fallbackBtcUsd.toLocaleString('en-US')}`);
       }
     }
   }
@@ -121,32 +140,63 @@ export class PricingService {
     }
 
     // Calcular estatísticas
-    const azeValues = prices.map((p) => p.azeBrl);
-    const btcValues = prices.map((p) => p.btcBrl);
+    const azeBrlValues = prices.map((p) => p.azeBrl);
+    const btcBrlValues = prices.map((p) => p.btcBrl);
+    const azeUsdValues = prices.map((p) => p.azeUsd);
+    const btcUsdValues = prices.map((p) => p.btcUsd);
+    const usdBrlValues = prices.map((p) => p.usdBrl);
 
     return {
       window: `${windowMinutes}m`,
       count: prices.length,
       startTime: prices[0].timestamp,
       endTime: prices[prices.length - 1].timestamp,
-      aze: {
-        current: azeValues[azeValues.length - 1],
-        min: Math.min(...azeValues),
-        max: Math.max(...azeValues),
-        avg: azeValues.reduce((a, b) => a + b, 0) / azeValues.length,
-        first: azeValues[0],
+      brl: {
+        aze: {
+          current: azeBrlValues[azeBrlValues.length - 1],
+          min: Math.min(...azeBrlValues),
+          max: Math.max(...azeBrlValues),
+          avg: azeBrlValues.reduce((a, b) => a + b, 0) / azeBrlValues.length,
+          first: azeBrlValues[0],
+        },
+        btc: {
+          current: btcBrlValues[btcBrlValues.length - 1],
+          min: Math.min(...btcBrlValues),
+          max: Math.max(...btcBrlValues),
+          avg: btcBrlValues.reduce((a, b) => a + b, 0) / btcBrlValues.length,
+          first: btcBrlValues[0],
+        },
       },
-      btc: {
-        current: btcValues[btcValues.length - 1],
-        min: Math.min(...btcValues),
-        max: Math.max(...btcValues),
-        avg: btcValues.reduce((a, b) => a + b, 0) / btcValues.length,
-        first: btcValues[0],
+      usd: {
+        aze: {
+          current: azeUsdValues[azeUsdValues.length - 1],
+          min: Math.min(...azeUsdValues),
+          max: Math.max(...azeUsdValues),
+          avg: azeUsdValues.reduce((a, b) => a + b, 0) / azeUsdValues.length,
+          first: azeUsdValues[0],
+        },
+        btc: {
+          current: btcUsdValues[btcUsdValues.length - 1],
+          min: Math.min(...btcUsdValues),
+          max: Math.max(...btcUsdValues),
+          avg: btcUsdValues.reduce((a, b) => a + b, 0) / btcUsdValues.length,
+          first: btcUsdValues[0],
+        },
+        toBrl: {
+          current: usdBrlValues[usdBrlValues.length - 1],
+          min: Math.min(...usdBrlValues),
+          max: Math.max(...usdBrlValues),
+          avg: usdBrlValues.reduce((a, b) => a + b, 0) / usdBrlValues.length,
+          first: usdBrlValues[0],
+        },
       },
       prices: prices.map((p) => ({
         timestamp: p.timestamp,
         btcBrl: p.btcBrl,
         azeBrl: p.azeBrl,
+        btcUsd: p.btcUsd,
+        azeUsd: p.azeUsd,
+        usdBrl: p.usdBrl,
         source: p.source,
       })),
     };
@@ -157,7 +207,7 @@ export class PricingService {
    */
   private getApiUrl(): string {
     const token = process.env.AWESOME_API_TOKEN;
-    const baseUrl = 'https://economia.awesomeapi.com.br/json/last/BTC-BRL';
+    const baseUrl = 'https://economia.awesomeapi.com.br/json/last/BTC-BRL,BTC-USD,USD-BRL';
     return token ? `${baseUrl}?token=${token}` : baseUrl;
   }
 }
