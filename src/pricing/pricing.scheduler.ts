@@ -12,6 +12,9 @@ export class PricingScheduler {
     this.logger.log(`Iniciando polling de cotação a cada ${this.POLLING_INTERVAL_MS / 1000}s`);
     this.handlePriceFetch();
 
+    // Executar limpeza na inicialização
+    this.handleCleanup();
+
     // Configurar intervalo
     setInterval(() => {
       this.handlePriceFetch();
@@ -31,20 +34,17 @@ export class PricingScheduler {
    */
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async handleCleanup() {
-    this.logger.log('Iniciando limpeza de registros antigos...');
+    this.logger.log('Iniciando limpeza de registros antigos (>7 dias)...');
 
     try {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const countBefore = await this.pricingService.countRecords();
+      const deletedCount = await this.pricingService.cleanupOldRecords();
+      const countAfter = await this.pricingService.countRecords();
 
-      const result = await this.pricingService['prisma'].priceHistory.deleteMany({
-        where: {
-          timestamp: {
-            lt: sevenDaysAgo,
-          },
-        },
-      });
-
-      this.logger.log(`✅ Limpeza concluída: ${result.count} registros removidos`);
+      this.logger.log(
+        `✅ Limpeza concluída: ${deletedCount} registros removidos | ` +
+        `Antes: ${countBefore} | Depois: ${countAfter}`,
+      );
     } catch (error) {
       this.logger.error(`❌ Erro na limpeza: ${error.message}`);
     }

@@ -203,6 +203,30 @@ export class PricingService {
   }
 
   /**
+   * Limpar registros antigos (mais de 7 dias)
+   */
+  async cleanupOldRecords(): Promise<number> {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const result = await this.prisma.priceHistory.deleteMany({
+      where: {
+        timestamp: {
+          lt: sevenDaysAgo,
+        },
+      },
+    });
+
+    return result.count;
+  }
+
+  /**
+   * Contar registros no banco
+   */
+  async countRecords(): Promise<number> {
+    return this.prisma.priceHistory.count();
+  }
+
+  /**
    * URL da API com token
    */
   private getApiUrl(): string {
