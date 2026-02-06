@@ -155,6 +155,95 @@ Para mudar o período de retenção de dados, edite `.env`:
 DATA_RETENTION_DAYS=7
 ```
 
+## 🤖 Sistema de Monitoramento Automático
+
+### Proteções Instaladas
+
+O servidor possui um sistema de monitoramento e limpeza automática para prevenir disco cheio:
+
+#### 1. Log Rotation Otimizado
+
+**rsyslog** (logs do sistema):
+- Rotação: Diária
+- Tamanho máximo: 1GB
+- Retenção: 3 dias
+- Compressão: Automática
+- Config: `/etc/logrotate.d/rsyslog`
+
+**PM2 logs** (logs da aplicação):
+- Rotação: Diária
+- Tamanho máximo: 100MB por arquivo
+- Retenção: 7 dias
+- Compressão: Automática
+- Config: `/etc/logrotate.d/pm2-logs`
+
+#### 2. Monitoramento Automático
+
+**Script**: `/usr/local/bin/disk-monitor.sh`
+
+**Execução**: Diariamente às 2:00 AM (via cron)
+
+**O que faz**:
+- Monitora uso do disco
+- Se uso > 80%, executa limpeza automática:
+  - Limpa syslog se > 2GB
+  - Remove logs antigos do nginx
+  - Limpa journal logs > 7 dias
+  - Força rotação de todos os logs
+  - Limpa cache do apt
+
+**Ver logs de monitoramento**:
+```bash
+tail -f /var/log/disk-monitor.log
+```
+
+**Executar limpeza manual**:
+```bash
+sudo /usr/local/bin/disk-monitor.sh
+```
+
+#### 3. Configurar Cron Job (se não estiver ativo)
+
+```bash
+# Editar crontab
+crontab -e
+
+# Adicionar esta linha:
+0 2 * * * /usr/local/bin/disk-monitor.sh
+
+# Verificar se foi adicionado:
+crontab -l
+```
+
+### Forçar Rotação de Logs
+
+```bash
+# Forçar rotação de todos os logs
+sudo logrotate -f /etc/logrotate.conf
+
+# Forçar apenas rsyslog
+sudo logrotate -f /etc/logrotate.d/rsyslog
+
+# Forçar apenas PM2 logs
+sudo logrotate -f /etc/logrotate.d/pm2-logs
+```
+
+### Verificar Status do Sistema
+
+```bash
+# Uso do disco
+df -h
+
+# Maiores arquivos de log
+sudo du -sh /var/log/* | sort -rh | head -10
+
+# Status do monitoramento
+cat /var/log/disk-monitor.log
+
+# Próxima execução do cron
+crontab -l
+```
+
 ## 📅 Rotinas Recomendadas
 
 ### Diário
@@ -163,9 +252,11 @@ DATA_RETENTION_DAYS=7
 
 ### Semanal
 - Verificar espaço em disco: `df -h`
+- Verificar logs de monitoramento: `cat /var/log/disk-monitor.log`
 - Verificar quantidade de registros no banco
 
 ### Mensal
-- Limpar logs antigos do sistema
+- Verificar se a rotação de logs está funcionando
 - Verificar se a limpeza automática está funcionando
 - Atualizar dependências: `npm update`
+- Revisar e limpar logs muito antigos se necessário
