@@ -25,11 +25,11 @@ export class PricingController {
       data: {
         brl: {
           btc: price.btcBrl,
-          aze: price.azeBrl,
+          aze: this.pricingService.applyAzeAdjustment(price.azeBrl),
         },
         usd: {
           btc: price.btcUsd,
-          aze: price.azeUsd,
+          aze: this.pricingService.applyAzeAdjustment(price.azeUsd),
           toBrl: price.usdBrl,
         },
         source: price.source,

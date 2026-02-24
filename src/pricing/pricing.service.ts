@@ -27,6 +27,7 @@ export class PricingService {
   private readonly logger = new Logger(PricingService.name);
   private readonly BTC_DIVISOR = Number(process.env.BTC_DIVISOR) || 1000;
   private readonly FALLBACK_BTC_BRL = Number(process.env.FALLBACK_BTC_BRL) || 550000;
+  private readonly AZE_PRICE_ADJUSTMENT = Number(process.env.AZE_PRICE_ADJUSTMENT) || 0;
 
   constructor(private prisma: PrismaService) {}
 
@@ -140,9 +141,9 @@ export class PricingService {
     }
 
     // Calcular estatísticas
-    const azeBrlValues = prices.map((p) => p.azeBrl);
+    const azeBrlValues = prices.map((p) => this.applyAzeAdjustment(p.azeBrl));
     const btcBrlValues = prices.map((p) => p.btcBrl);
-    const azeUsdValues = prices.map((p) => p.azeUsd);
+    const azeUsdValues = prices.map((p) => this.applyAzeAdjustment(p.azeUsd));
     const btcUsdValues = prices.map((p) => p.btcUsd);
     const usdBrlValues = prices.map((p) => p.usdBrl);
 
@@ -193,13 +194,21 @@ export class PricingService {
       prices: prices.map((p) => ({
         timestamp: p.timestamp,
         btcBrl: p.btcBrl,
-        azeBrl: p.azeBrl,
+        azeBrl: this.applyAzeAdjustment(p.azeBrl),
         btcUsd: p.btcUsd,
-        azeUsd: p.azeUsd,
+        azeUsd: this.applyAzeAdjustment(p.azeUsd),
         usdBrl: p.usdBrl,
         source: p.source,
       })),
     };
+  }
+
+  /**
+   * Aplica o ajuste percentual configurado ao preço do AZE
+   */
+  applyAzeAdjustment(price: number): number {
+    if (this.AZE_PRICE_ADJUSTMENT === 0) return price;
+    return price * (1 + this.AZE_PRICE_ADJUSTMENT / 100);
   }
 
   /**
